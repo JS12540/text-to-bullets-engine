@@ -33,7 +33,22 @@ def _is_stuck_in_cycle(token_ids: list[int], max_period: int = 3, repeats: int =
     return False
 
 
-def decode_step(state: GenerationState, decoder_session: ort.InferenceSession) -> int | None:
+def _pick_next_token(logits: np.ndarray, temperature: float) -> int:
+    """Greedy argmax when temperature == 0 (default); otherwise sample from the
+    softmax distribution scaled by temperature. Sampling makes output non-deterministic."""
+    if temperature <= 0:
+        return int(np.argmax(logits))
+
+    scaled = logits / temperature
+    scaled -= scaled.max()  # numerical stability before exp
+    probs = np.exp(scaled)
+    probs /= probs.sum()
+    return int(np.random.choice(len(probs), p=probs))
+
+
+def decode_step(
+    state: GenerationState, decoder_session: ort.InferenceSession, temperature: float = 0.0
+) -> int | None:
     """
     Perform one decode step, update state with new token and KV cache.
 
@@ -85,6 +100,15 @@ def decode_step(state: GenerationState, decoder_session: ort.InferenceSession) -
     outputs = decoder_session.run(output_names, feed)
     logits = outputs[0]
 
+    logits = logits.copy()
+
+    # T5's 100 pretraining sentinel tokens are never valid in this task's output (see
+    # settings.py comment). Greedy decoding never picks them anyway, but sampling
+    # (temperature > 0) can draw them since they carry small nonzero probability —
+    # mask them out unconditionally so they can't leak into either decoding mode.
+    sentinel_start, sentinel_end = settings.SENTINEL_TOKEN_ID_RANGE
+    logits[0, -1, sentinel_start:sentinel_end] = -np.inf
+
     # Suppress EOS until MIN_NEW_TOKENS is reached (see settings.py comment —
     # close EOS-vs-continue calls can flip due to quantization imprecision).
     # Capped by input length: a short input (e.g. "My name is Jay Shah") has
@@ -92,7 +116,6 @@ def decode_step(state: GenerationState, decoder_session: ort.InferenceSession) -
     # model degenerate into repetition instead of stopping.
     effective_min_new_tokens = min(settings.MIN_NEW_TOKENS, state.input_ids.shape[1])
     if len(state.generated_token_ids) < effective_min_new_tokens:
-        logits = logits.copy()
         logits[0, -1, settings.EOS_TOKEN_ID] = -np.inf
 
     # The merged graph's use_cache_branch=True path never recomputes
@@ -112,7 +135,7 @@ def decode_step(state: GenerationState, decoder_session: ort.InferenceSession) -
         idx += 4
     state.past_key_values = new_past_key_values
 
-    next_token_id = int(np.argmax(logits[0, -1, :]))
+    next_token_id = _pick_next_token(logits[0, -1, :], temperature)
 
     if next_token_id == settings.EOS_TOKEN_ID:
         state.is_eos = True
