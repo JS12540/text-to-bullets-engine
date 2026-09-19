@@ -10,6 +10,8 @@ interface TextInputCardProps {
   onExample: () => void
   isLoading: boolean
   isEmpty: boolean
+  temperature: number
+  onTemperatureChange: (value: number) => void
 }
 
 // Backend enforces MAX_INPUT_TOKENS=2048; system+task prompt adds ~84 tokens on top of
@@ -26,6 +28,8 @@ export function TextInputCard({
   onExample,
   isLoading,
   isEmpty,
+  temperature,
+  onTemperatureChange,
 }: TextInputCardProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const characterCount = value.length
@@ -88,12 +92,36 @@ export function TextInputCard({
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-blue">Decoding:</span>
-                <span className="font-medium text-navy">Greedy</span>
+                <span className="font-medium text-navy">{temperature > 0 ? 'Sampling' : 'Greedy'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-blue">Streaming:</span>
                 <span className="font-medium text-navy">Enabled</span>
               </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <div className="flex items-center justify-between">
+                <label htmlFor="temperature" className="text-sm text-slate-blue">
+                  Temperature
+                </label>
+                <span className="text-sm font-medium text-navy">{temperature.toFixed(1)}</span>
+              </div>
+              <input
+                id="temperature"
+                type="range"
+                min={0}
+                max={1}
+                step={0.1}
+                value={temperature}
+                onChange={(e) => onTemperatureChange(parseFloat(e.currentTarget.value))}
+                className="mt-2 w-full"
+              />
+              <p className="mt-2 text-xs text-slate-blue">
+                0 = deterministic (same input always gives the same output). Above 0, the
+                model samples instead of always picking the top token — output becomes
+                random and can vary between runs, and quality can degrade at higher values.
+              </p>
             </div>
           </div>
         )}
