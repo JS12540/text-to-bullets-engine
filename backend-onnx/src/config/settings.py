@@ -1,4 +1,5 @@
 """Application configuration constants."""
+import os
 from pathlib import Path
 
 
@@ -14,6 +15,13 @@ class Settings:
     MODEL_PATH: str = str(Path(__file__).parent.parent.parent / "artifacts" / "text-to-bullets-onnx-int8")
     # Local copy, not ../backend/ — this directory must be deployable standalone (see DEPLOYMENT.md).
     TOKENIZER_PATH: str = str(Path(MODEL_PATH) / "tokenizer.json")
+
+    # Remote model weights: set these (Vercel Blob URLs) to keep the .onnx files out of the
+    # deployed function bundle — bundling them pushes past Vercel's 225MB Python function cap.
+    # Unset locally — falls back to the bundled artifacts/ copy.
+    ENCODER_MODEL_URL: str | None = os.environ.get("ENCODER_MODEL_URL")
+    DECODER_MODEL_URL: str | None = os.environ.get("DECODER_MODEL_URL")
+    MODEL_CACHE_DIR: str = "/tmp/text-to-bullets-model"
     MAX_INPUT_TOKENS: int = 2048
     MAX_NEW_TOKENS: int = 512
     # Suppress EOS below this length. ONNX Runtime's dynamic INT8 quantization
