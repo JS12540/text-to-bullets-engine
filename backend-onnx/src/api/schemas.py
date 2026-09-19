@@ -4,6 +4,14 @@ from pydantic import BaseModel, Field, field_validator
 
 class BulletsRequest(BaseModel):
     text: str = Field(..., min_length=1, description="Input text to convert to bullets")
+    temperature: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="0 = greedy/deterministic (default). >0 samples from the softmax "
+        "distribution instead of always taking the top token — output becomes "
+        "non-deterministic and can vary run to run for the same input.",
+    )
 
     @field_validator("text")
     @classmethod
