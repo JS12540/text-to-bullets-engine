@@ -21,7 +21,8 @@ export async function streamBullets(
   apiBaseUrl: string,
   onChunk: (chunk: string) => void,
   onMetrics: (metrics: GenerationMetrics) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  temperature = 0
 ): Promise<StreamResult> {
   const controller = new AbortController()
   const finalSignal = signal || controller.signal
@@ -35,7 +36,7 @@ export async function streamBullets(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, temperature }),
       signal: finalSignal,
     })
 
