@@ -1,5 +1,6 @@
 export interface BulletsRequest {
   text: string
+  temperature?: number
 }
 
 export interface GenerationMetrics {
