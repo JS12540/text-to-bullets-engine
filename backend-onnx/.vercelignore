@@ -18,6 +18,12 @@ artifacts/tokenized_input.json
 artifacts/_tmp_fp32_checkpoint/
 artifacts/_onnx_fp32/
 
+# Model weights (~195MB) — fetched from ENCODER_MODEL_URL/DECODER_MODEL_URL at cold start
+# instead of bundled, since bundling them blows Vercel's 225MB function cap. See src/engine/model.py.
+# Only excluded when those env vars are set; keep them locally / for CLI-only deploys otherwise.
+artifacts/text-to-bullets-onnx-int8/encoder_model.onnx
+artifacts/text-to-bullets-onnx-int8/decoder_model_merged.onnx
+
 uv.lock
 __pycache__/
 *.pyc
