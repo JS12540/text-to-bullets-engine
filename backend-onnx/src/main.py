@@ -40,8 +40,9 @@ def create_app() -> FastAPI:
     return app
 
 
+app = create_app()  # Module-level `app` — this is what Vercel's Python runtime auto-detects.
+
 if __name__ == "__main__":
     import uvicorn
 
-    app = create_app()
     uvicorn.run(app, host=settings.HOST, port=settings.PORT, log_level=settings.LOG_LEVEL.lower())
