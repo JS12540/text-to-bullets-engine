@@ -19,6 +19,7 @@ export default function Home() {
   const [metrics, setMetrics] = useState<GenerationMetrics | null>(null)
   const [metadata, setMetadata] = useState<RequestMetadata | null>(null)
   const [backendReady, setBackendReady] = useState(true)
+  const [temperature, setTemperature] = useState(0)
   const abortControllerRef = useRef<AbortController | null>(null)
   const startTimeRef = useRef<number>(0)
 
@@ -67,7 +68,8 @@ export default function Home() {
             quantization: 'TorchAO',
           })
         },
-        abortControllerRef.current.signal
+        abortControllerRef.current.signal,
+        temperature
       )
 
       setOutputText(result.text)
@@ -156,6 +158,8 @@ export default function Home() {
             onExample={handleExample}
             isLoading={isLoading}
             isEmpty={isEmpty}
+            temperature={temperature}
+            onTemperatureChange={setTemperature}
           />
           <OutputCard output={outputText} status={status} totalLatency={metadata?.total_latency} />
         </div>
