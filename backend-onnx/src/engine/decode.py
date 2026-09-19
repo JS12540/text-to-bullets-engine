@@ -74,7 +74,11 @@ def decode_step(state: GenerationState, decoder_session: ort.InferenceSession) -
 
     # Suppress EOS until MIN_NEW_TOKENS is reached (see settings.py comment —
     # close EOS-vs-continue calls can flip due to quantization imprecision).
-    if len(state.generated_token_ids) < settings.MIN_NEW_TOKENS:
+    # Capped by input length: a short input (e.g. "My name is Jay Shah") has
+    # nothing left to say after a few tokens, so forcing a flat 30 makes the
+    # model degenerate into repetition instead of stopping.
+    effective_min_new_tokens = min(settings.MIN_NEW_TOKENS, state.input_ids.shape[1])
+    if len(state.generated_token_ids) < effective_min_new_tokens:
         logits = logits.copy()
         logits[0, -1, settings.EOS_TOKEN_ID] = -np.inf
 
