@@ -33,17 +33,14 @@ These were created specifically for this deployment — you shouldn't need to to
 
 ```text
 backend-onnx/
-├── api/
-│   └── index.py          # Vercel's Python entrypoint — exposes the FastAPI app
-├── vercel.json            # Routes all paths to api/index.py, sets memory/timeout
-├── .vercelignore          # Excludes local venvs and conversion-only scripts
+├── src/main.py            # FastAPI app — Vercel auto-detects this as the entrypoint (zero-config)
+├── vercel.json             # Function memory/timeout + excludeFiles (scripts/, model weights)
 └── requirements.txt        # fastapi, onnxruntime, numpy, tokenizers, uvicorn
 ```
 
-`api/index.py`:
+`src/main.py` exposes a module-level `app` object, which is what Vercel's Python runtime looks for automatically at `src/main.py` — no wrapper file or custom `rewrites` needed:
 ```python
-from src.main import create_app
-app = create_app()
+app = create_app()  # module-level — this is what Vercel's Python runtime auto-detects
 ```
 
 `vercel.json`:
@@ -51,14 +48,12 @@ app = create_app()
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/index.py": {
+    "src/main.py": {
       "memory": 1024,
-      "maxDuration": 60
+      "maxDuration": 60,
+      "excludeFiles": "{scripts/**,artifacts/text-to-bullets-onnx-int8/encoder_model.onnx,artifacts/text-to-bullets-onnx-int8/decoder_model_merged.onnx}"
     }
-  },
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index" }
-  ]
+  }
 }
 ```
 
@@ -68,18 +63,17 @@ Don't debug import errors on Vercel's build servers — verify the entrypoint im
 
 ```bash
 cd backend-onnx
-.venv-serve/bin/python -c "from api.index import app; print(app.title)"
+.venv-serve/bin/python -c "from src.main import app; print(app.title)"
 # Expected: Text-to-Bullets API (ONNX)
 ```
 
-### 1.3 Check what will actually get uploaded
+### 1.3 Model weights are excluded from the bundle, fetched from Blob at cold start
 
-The model artifacts are ~195MB (`encoder_model.onnx` + `decoder_model_merged.onnx` + tokenizer files) — comfortably under Vercel's 500MB Python function limit, but worth confirming `.vercelignore` is excluding the venvs and scripts before you upload:
+The two `.onnx` files (~195MB combined) are excluded from the function bundle via `excludeFiles` above — Vercel's Python bundle cap made bundling them directly too tight alongside `onnxruntime`'s own footprint. Instead:
 
-```bash
-du -sh artifacts/text-to-bullets-onnx-int8/
-# ~195M — this is what gets bundled into the function
-```
+- Upload `encoder_model.onnx` and `decoder_model_merged.onnx` to **Vercel Blob** (dashboard → Storage → Blob)
+- Set `ENCODER_MODEL_URL` and `DECODER_MODEL_URL` env vars on the project to their Blob URLs
+- `src/engine/model.py` downloads them into `/tmp` on cold start if those env vars are set; otherwise it falls back to the bundled `artifacts/` copy (local dev is unaffected)
 
 ### 1.4 Deploy
 
@@ -122,6 +116,19 @@ curl -sN -X POST "$BACKEND_URL/v1/bullets/stream" \
 ```
 
 If `/ready` returns `false` or times out, the model likely hasn't finished loading within the first request's window — see the cold-start note below.
+
+#### Optional `temperature` parameter
+
+`/v1/bullets/stream` also accepts `temperature` (float, `0.0`–`1.0`, default `0.0`):
+
+```bash
+curl -sN -X POST "$BACKEND_URL/v1/bullets/stream" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "...", "temperature": 0.7}'
+```
+
+- `0.0` (default) — greedy/deterministic decoding, same input always produces the same output (this is what the frontend uses by default)
+- `> 0.0` — samples from the softmax distribution instead of always taking the top token; output becomes non-deterministic and can vary between runs, with quality degrading as temperature rises toward `1.0`
 
 ---
 
@@ -186,7 +193,7 @@ If this matters for your use case, Vercel's **Fluid Compute** (mentioned in the 
 
 **Build fails on `onnxruntime` or `tokenizers` install** — Vercel's Python builder should resolve these fine from `requirements.txt`; if it doesn't, check the build log for a Python version mismatch (this project was validated on Python 3.13).
 
-**Function fails with an import error for `src.*`** — make sure you deployed from inside `backend-onnx/` (`cd backend-onnx && vercel`), not the repo root. `api/index.py`'s `from src.main import create_app` assumes `backend-onnx/` is the function's root.
+**Function fails with an import error for `src.*`** — make sure you deployed from inside `backend-onnx/` (`cd backend-onnx && vercel`), not the repo root. `src/main.py`'s internal imports (e.g. `from src.api.routes import router`) assume `backend-onnx/` is the function's root.
 
 **`/ready` returns `{"ready": false}`** — the model files didn't load. Check the function logs (`vercel logs <deployment-url>`) for the actual error; the most common cause during initial setup is `TOKENIZER_PATH` or `MODEL_PATH` pointing outside the deployed directory (already fixed — both now resolve to local paths inside `backend-onnx/artifacts/`, not `../backend/`).
 
