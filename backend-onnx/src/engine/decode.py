@@ -20,6 +20,19 @@ def _empty_kv(batch_size: int, seq_len: int) -> np.ndarray:
     return np.zeros((batch_size, settings.NUM_HEADS, seq_len, settings.HEAD_DIM), dtype=np.float32)
 
 
+def _is_stuck_in_cycle(token_ids: list[int], max_period: int = 3, repeats: int = 3) -> bool:
+    """True if the tail of token_ids is a period-1/2/.../max_period cycle repeated `repeats` times."""
+    for period in range(1, max_period + 1):
+        window = period * repeats
+        if len(token_ids) < window:
+            continue
+        tail = token_ids[-window:]
+        cycle = tail[:period]
+        if all(tail[i] == cycle[i % period] for i in range(window)):
+            return True
+    return False
+
+
 def decode_step(state: GenerationState, decoder_session: ort.InferenceSession) -> int | None:
     """
     Perform one decode step, update state with new token and KV cache.
@@ -102,6 +115,16 @@ def decode_step(state: GenerationState, decoder_session: ort.InferenceSession) -
     next_token_id = int(np.argmax(logits[0, -1, :]))
 
     if next_token_id == settings.EOS_TOKEN_ID:
+        state.is_eos = True
+        return None
+
+    # Repetition guard: greedy (argmax) decoding on a quantized model can lock
+    # into a fixed point where it cycles the same token, or the same short
+    # token sequence (e.g. a 2-token subword pair), forever instead of ever
+    # reaching EOS. Stop once a period-1/2/3 cycle repeats 3x rather than
+    # grinding out garbage to MAX_NEW_TOKENS.
+    recent = state.generated_token_ids + [next_token_id]
+    if _is_stuck_in_cycle(recent):
         state.is_eos = True
         return None
 
