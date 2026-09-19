@@ -1,6 +1,6 @@
 'use client'
 
-import { FileText, Zap, Shield, Cpu } from 'lucide-react'
+import { FileText, Zap, Shield, Cpu, Github } from 'lucide-react'
 
 export function Header() {
   return (
@@ -21,6 +21,26 @@ export function Header() {
           </div>
 
           <div className="flex flex-col items-end gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex items-center gap-4">
+              <a
+                href="https://github.com/JS12540/text-to-bullets-engine"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-sm text-slate-blue transition-colors hover:text-navy"
+              >
+                <span>GitHub repo</span>
+                <Github className="h-4 w-4" />
+              </a>
+              <a
+                href="https://huggingface.co/JayShah07/falconai-text-bullet-t5"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-sm text-slate-blue transition-colors hover:text-navy"
+              >
+                <span>Hugging Face model</span>
+                <span className="text-base leading-none">🤗</span>
+              </a>
+            </div>
             <div className="flex flex-wrap justify-end gap-2">
               <div className="flex items-center gap-1 rounded-full bg-slate-50 px-3 py-1.5 text-xs text-slate-blue">
                 <Zap className="h-3.5 w-3.5" />
