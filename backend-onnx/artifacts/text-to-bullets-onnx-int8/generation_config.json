@@ -1,0 +1,13 @@
+{
+  "assistant_confidence_threshold": 0.4,
+  "assistant_lookbehind": 10,
+  "decoder_start_token_id": 0,
+  "eos_token_id": [
+    1
+  ],
+  "num_assistant_tokens": 20,
+  "num_assistant_tokens_schedule": "constant",
+  "pad_token_id": 0,
+  "target_lookbehind": 10,
+  "transformers_version": "4.39.3"
+}

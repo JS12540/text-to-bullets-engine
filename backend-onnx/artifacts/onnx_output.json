@@ -1,0 +1,7 @@
+{
+  "output": "<pad><BULLET> Acme reported quarterly revenue of $4.2 billion, up 12% year over year.<BULLET> Operating profit increased 8% to $620 million, although operating margin declined from 17.2% to 14.8%.<BULLET> The company added 1.3 million customers during the quarter and raised full-year revenue guidance from $16 billion to $17.5 billion.<BULLET> Management warned that European demand weakened in July.</s>",
+  "load_time_s": 0.389,
+  "cold_generate_s": 2.52,
+  "warm_generate_s": 0.266,
+  "output_tokens": 80
+}

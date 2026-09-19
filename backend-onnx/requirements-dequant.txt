@@ -1,0 +1,18 @@
+# Phase 1: load the torchao-quantized checkpoint and dequantize it to plain float.
+# Needs transformers>=5.17.0 to load this checkpoint (matches ../backend's own
+# working versions) — incompatible with optimum-onnx (see requirements-export.txt),
+# so this MUST be a separate venv from the export phase (uv resolves all
+# declared extras jointly, which fails if these two groups share one project).
+#
+#   python3 -m venv .venv-dequant   # any recent Python works here
+#   .venv-dequant/bin/pip install -r requirements-dequant.txt
+#   .venv-dequant/bin/python dequantize.py
+#   .venv-dequant/bin/python tokenize_input.py
+#   .venv-dequant/bin/python run_torch_baseline.py
+#   .venv-dequant/bin/python decode_output.py   # after run_onnx.py has run
+torch>=2.14.0
+torchao>=0.18.0
+transformers>=5.17.0
+accelerate>=0.25.0
+sentencepiece>=0.2.0
+safetensors>=0.4.0

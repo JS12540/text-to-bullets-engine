@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-cool-white text-navy antialiased;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .prose {
+    @apply text-navy;
+  }
+
+  .prose p {
+    @apply my-2;
+  }
+
+  .prose ul {
+    @apply my-2 list-none pl-0;
+  }
+
+  .prose li {
+    @apply my-1;
+  }
+}

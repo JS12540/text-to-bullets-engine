@@ -1,0 +1,23 @@
+# Local venvs — Vercel installs fresh from requirements.txt
+.venv-serve/
+.venv-dequant/
+.venv-export/
+.venv/
+
+# One-off conversion/validation scripts — not needed at runtime, and their
+# own heavy deps (torch, transformers, optimum) are never installed here
+scripts/
+requirements-dequant.txt
+requirements-export.txt
+
+# Intermediate/scratch outputs from running the scripts above
+artifacts/torch_output.json
+artifacts/onnx_output.json
+artifacts/onnx_output_ids.json
+artifacts/tokenized_input.json
+artifacts/_tmp_fp32_checkpoint/
+artifacts/_onnx_fp32/
+
+uv.lock
+__pycache__/
+*.pyc

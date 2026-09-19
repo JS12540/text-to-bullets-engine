@@ -1,0 +1,24 @@
+# Phase 2: export the plain checkpoint (from dequantize.py) to ONNX, then quantize it.
+#
+# These exact pins were the only combination found to work (see README.md's
+# "Known issues" section for the full trail of incompatibilities hit getting
+# here): optimum-onnx (newer optimum releases) is broken against transformers
+# 5.x, and torch>=2.3 changed its ONNX exporter internals in ways old optimum's
+# post-export cleanup code doesn't handle. This is genuinely brittle — expect
+# to need to re-pin if any of these move.
+#
+# MUST use Python 3.12 (torch==2.2.2 has no 3.13+ wheels) and a separate venv
+# from the dequant phase (see requirements-dequant.txt for why).
+#
+#   uv venv --python 3.12 .venv-export
+#   uv pip install --python .venv-export/bin/python -r requirements-export.txt
+#   .venv-export/bin/python export_onnx.py
+#   .venv-export/bin/python run_onnx.py
+optimum[onnxruntime]==1.19.0
+torch==2.2.2
+transformers==4.39.3
+tokenizers<0.19
+numpy<2
+accelerate>=0.25.0
+onnx>=1.15.0
+sentencepiece>=0.2.0

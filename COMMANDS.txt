@@ -1,0 +1,194 @@
+================================================================================
+TEXT-TO-BULLETS BACKEND v0.1.0 — EXACT COMMANDS
+================================================================================
+
+## 1. INSTALL DEPENDENCIES WITH UV
+
+$ cd /Users/jay.shah/Desktop/Modulr_Projects/learning/text-to-bullets-engine/backend
+$ uv sync
+
+Expected: Creates virtual environment, installs FastAPI, PyTorch, transformers, etc.
+
+---
+
+## 2. RUN FASTAPI LOCALLY
+
+$ cd /Users/jay.shah/Desktop/Modulr_Projects/learning/text-to-bullets-engine/backend
+$ uv run python -m src.main
+
+Expected output:
+  INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+
+Server is live at: http://localhost:8000
+
+---
+
+## 3. TEST STREAMING ENDPOINT WITH CURL
+
+$ curl -X POST http://localhost:8000/v1/bullets/stream \
+  -H "Content-Type: application/json" \
+  -d '{"text": "The quick brown fox jumps over the lazy dog."}'
+
+Expected: Server-Sent Events stream of text chunks.
+
+Or test without newlines:
+$ curl -X POST http://localhost:8000/v1/bullets/stream -H "Content-Type: application/json" -d '{"text": "Machine learning enables computers to learn from data."}'
+
+---
+
+## 4. BUILD DOCKER IMAGE
+
+$ cd /Users/jay.shah/Desktop/Modulr_Projects/learning/text-to-bullets-engine/backend
+$ docker build -t text-to-bullets-backend:0.1.0 .
+
+Expected: Image tagged as 'text-to-bullets-backend:0.1.0'
+
+Check with: docker images | grep text-to-bullets
+
+---
+
+## 5. RUN DOCKER CONTAINER
+
+$ docker run \
+  -p 8000:8000 \
+  -e MODEL_PATH=/app/artifacts/text-to-bullets-int8 \
+  text-to-bullets-backend:0.1.0
+
+Or with .env file:
+$ cd /Users/jay.shah/Desktop/Modulr_Projects/learning/text-to-bullets-engine/backend
+$ docker run --env-file .env -p 8000:8000 text-to-bullets-backend:0.1.0
+
+Server accessible at: http://localhost:8000
+
+---
+
+## QUICK HEALTH CHECKS
+
+# Health endpoint
+$ curl http://localhost:8000/health
+→ {"status": "ok"}
+
+# Readiness endpoint (checks model loaded)
+$ curl http://localhost:8000/ready
+→ {"ready": true}
+
+---
+
+## DIRECTORY STRUCTURE CREATED
+
+text-to-bullets-engine/
+├── backend/
+│   ├── src/
+│   │   ├── __init__.py
+│   │   ├── main.py                   (FastAPI app factory)
+│   │   ├── api/
+│   │   │   ├── __init__.py
+│   │   │   ├── routes.py             (endpoints)
+│   │   │   └── schemas.py            (Pydantic models)
+│   │   ├── engine/
+│   │   │   ├── __init__.py
+│   │   │   ├── inference.py          (orchestration)
+│   │   │   ├── state.py              (per-request state)
+│   │   │   ├── prefill.py            (encoder pass)
+│   │   │   ├── decode.py             (token generation)
+│   │   │   ├── cache.py              (KV cache management)
+│   │   │   └── streamer.py           (SSE streaming)
+│   │   ├── config/
+│   │   │   ├── __init__.py
+│   │   │   └── settings.py           (env configuration)
+│   │   ├── constants/
+│   │   │   ├── __init__.py
+│   │   │   └── prompts.py            (system/task prompts)
+│   │   └── utils/
+│   │       ├── __init__.py
+│   │       ├── logging.py            (structured JSON logs)
+│   │       ├── context.py            (request context)
+│   │       └── memory.py             (memory tracking)
+│   ├── artifacts/
+│   │   └── text-to-bullets-int8/     (model directory)
+│   ├── pyproject.toml                (uv dependencies)
+│   ├── requirements.txt              (Docker dependencies)
+│   ├── Dockerfile                    (CPU-only container)
+│   ├── .dockerignore
+│   ├── .env.example
+│   └── README.md                     (full documentation)
+├── README.md                         (project overview)
+├── QUICKSTART.md                     (quick setup guide)
+└── COMMANDS.txt                      (this file)
+
+---
+
+## KEY ARCHITECTURE
+
+Request Flow:
+  1. Validation    → Pydantic, token count check
+  2. Prefill       → T5 encoder, save encoder outputs
+  3. Decode Loop   → Token generation with KV cache reuse
+  4. Stream        → SSE yield chunks
+  5. Cleanup       → Release per-request tensors
+
+Model loaded at startup, stays in memory, reused per request.
+Per-request KV cache and encoder outputs released after request.
+
+---
+
+## CONFIGURATION (src/config/settings.py)
+
+Environment variables:
+  MODEL_PATH          = ./artifacts/text-to-bullets-int8
+  MAX_INPUT_TOKENS    = 2000
+  MAX_NEW_TOKENS      = 512
+  HOST                = 0.0.0.0
+  PORT                = 8000
+  LOG_LEVEL           = INFO
+
+Load from .env:
+  $ cp backend/.env.example backend/.env
+  $ (edit backend/.env as needed)
+  $ cd backend && uv run python -m src.main
+
+---
+
+## API ENDPOINTS
+
+GET /health
+  → {"status": "ok"}
+
+GET /ready
+  → {"ready": true} or {"ready": false, "reason": "..."}
+
+POST /v1/bullets/stream
+  Request:  {"text": "Your input text"}
+  Response: Server-Sent Events stream of text chunks
+
+---
+
+## IMPORT VERIFICATION (after uv sync)
+
+$ cd backend
+$ uv run python -c "
+from src.config.settings import settings
+from src.api.schemas import BulletsRequest
+from src.engine.state import GenerationState
+from src.constants.prompts import SYSTEM_PROMPT
+from src.main import create_app
+print('✓ All imports successful')
+"
+
+---
+
+## OBSERVABILITY
+
+Structured JSON logging with:
+  - request_id
+  - input_tokens, output_tokens
+  - prefill_time, ttft (time-to-first-token), mean_itl, total_latency
+  - reached_eos flag
+  - error messages on failure
+
+Log events: startup_begin, model_loaded, request_started, request_completed, shutdown_begin
+
+---
+
+END OF COMMANDS
+================================================================================
