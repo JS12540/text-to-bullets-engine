@@ -1,6 +1,6 @@
 'use client'
 
-import { FileText } from 'lucide-react'
+import { FileText, Github, Heart } from 'lucide-react'
 
 export function Footer() {
   return (
@@ -14,9 +14,34 @@ export function Footer() {
               <p className="text-xs text-slate-blue">Clearer text. Better understanding.</p>
             </div>
           </div>
-          <p className="text-xs text-slate-blue">
-            Built for learning and real-world inference.
-          </p>
+          <div className="flex flex-col items-start gap-2 sm:items-end">
+            <p className="text-xs text-slate-blue">
+              Built for learning and real-world inference.
+            </p>
+            <p className="flex items-center gap-1 text-xs text-slate-blue">
+              Made with <Heart className="h-3.5 w-3.5 fill-red-500 text-red-500" />
+            </p>
+            <div className="flex items-center gap-4">
+              <a
+                href="https://github.com/JS12540/text-to-bullets-engine"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs text-slate-blue transition-colors hover:text-navy"
+              >
+                <span>GitHub repo</span>
+                <Github className="h-3.5 w-3.5" />
+              </a>
+              <a
+                href="https://huggingface.co/JayShah07/falconai-text-bullet-t5"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs text-slate-blue transition-colors hover:text-navy"
+              >
+                <span>Hugging Face model</span>
+                <span className="text-sm leading-none">🤗</span>
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </footer>
