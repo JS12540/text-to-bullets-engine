@@ -40,5 +40,11 @@ class Settings:
     NUM_HEADS: int = 8
     HEAD_DIM: int = 64
 
+    # T5's 100 pretraining sentinel tokens (<extra_id_0> .. <extra_id_99>), contiguous in the
+    # tokenizer vocab. Never valid in this task's output — greedy decoding never picks them
+    # (they're never top-1), but sampling (temperature > 0) can draw them since they carry
+    # small nonzero probability. Masked out in decode.py regardless of decoding mode.
+    SENTINEL_TOKEN_ID_RANGE: tuple[int, int] = (32000, 32100)  # [start, end)
+
 
 settings = Settings()
