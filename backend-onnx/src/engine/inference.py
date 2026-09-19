@@ -59,7 +59,7 @@ async def generate_bullets(
         max_new = settings.MAX_NEW_TOKENS
         last_yielded = 0
         while len(state.generated_token_ids) < max_new and not state.is_eos:
-            decode_step(state, decoder_session)
+            decode_step(state, decoder_session, temperature=request.temperature)
 
             if not state.generated_token_ids:
                 continue
