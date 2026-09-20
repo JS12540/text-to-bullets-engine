@@ -1064,19 +1064,140 @@ The ONNX path is real and it works, but it cost two genuine bugs to get there �
 
 ## 28. Future Work
 
-Potential next experiments:
+V1 already covers the fundamental single-request inference path:
 
-- concurrent load testing;
-- request queue and inference worker;
-- prefill/decode scheduling;
-- dynamic batching;
-- continuous batching;
-- KV-cache memory budgets;
-- cancellation and admission control;
-- Prometheus metrics;
-- OpenTelemetry tracing;
-- container resource profiling;
-- autoscaling;
+```text
+Fine-tuned T5
+→ TorchAO INT8
+→ context validation
+→ encoder prefill
+→ manual decode
+→ per-request KV cache
+→ streaming
+→ cache cleanup
+→ FastAPI
+→ Docker
+→ frontend
+→ real TTFT / ITL / latency metrics
+```
+
+The natural next step (V2) isn't more model features — it's turning this into a
+**concurrent inference engine**. Model retraining stays out of scope through V2; the
+current model is already sufficient to learn the harder problem of serving it well
+under concurrent load.
+
+### V2 — Concurrent Inference & Scheduling
+
+1. **Request queue** — API requests enter a controlled inference queue rather than every
+   FastAPI coroutine independently hitting the model.
+2. **Inference scheduler** — explicitly manage requests through states:
+   ```text
+   WAITING → PREFILL → DECODING → FINISHED
+   ```
+3. **Multiple active `GenerationState`s** — each request retains its own encoder outputs,
+   KV cache, generated tokens, timings, and cancellation state.
+4. **Decode interleaving** — instead of completing A before B:
+   ```text
+   A1 → B1 → C1 → A2 → B2 → C2 → ...
+   ```
+   A good intermediate step before batching.
+5. **Request cancellation** — when the user hits Stop or disconnects, stop generation
+   immediately and free that request's encoder/KV state.
+6. **Timeouts** — prevent pathological requests from occupying inference capacity
+   indefinitely.
+7. **Admission control** — limits such as `MAX_ACTIVE_REQUESTS`, `MAX_QUEUED_REQUESTS`,
+   `MAX_TOTAL_KV_MEMORY`.
+8. **Backpressure / overload handling** — return a clean `429`/`503` instead of letting
+   unlimited requests exhaust RAM.
+9. **Queue metrics** — separate queue time, prefill time, TTFT, decode time, ITL, and
+   end-to-end latency; these become far more meaningful under load.
+10. **Load testing** — benchmark 1, 2, 4, 8, 16 concurrent users; report throughput,
+    TTFT p50/p95, latency p50/p95, RAM, and requests/sec.
+
+### V3 — Batching
+
+Once V2 works, move to actual inference optimization:
+
+```text
+Dynamic batching → batched prefill → batched decode → continuous batching
+```
+
+Instead of:
+```text
+Model(A)
+Model(B)
+Model(C)
+```
+the goal is:
+```text
+Model([A, B, C])
+        ↓
+ tokenA tokenB tokenC
+```
+And when B finishes, a new request slots in:
+```text
+[A, B, C] → B finishes → [A, D, C]
+```
+That's **continuous batching** — building it by hand is what makes clear why systems
+like vLLM/SGLang need real schedulers.
+
+### V4 — Observability & Reliability
+
+Make the server operationally mature:
+
+- Prometheus metrics, Grafana dashboard, OpenTelemetry traces
+- structured JSON logs, request IDs across frontend/backend
+- `/health`, `/live`, `/ready`
+- memory/RSS monitoring, KV-cache memory monitoring
+- queue depth, active generations, tokens/sec, error-rate metrics
+- graceful shutdown, proper SIGTERM handling, container resource limits
+
+### V5 — Performance Engineering
+
+Once observability exists, optimize using actual measurements:
+
+- `torch.compile` experiments, thread-count tuning, `OMP_NUM_THREADS`/MKL tuning
+- CPU affinity experiments, preallocated buffers, reduced tensor allocations during decode
+- tokenizer profiling, quantization kernel comparison, BF16 vs INT8 across CPU architectures
+- PyTorch Profiler, flame graphs, memory profiling
+- revisit Candle/ONNX/OpenVINO/llama.cpp-compatible approaches, only where the
+  architecture/runtime supports them cleanly
+
+### V6 — Production Platform Features
+
+- API keys, per-key rate limits, usage quotas, request-size limits
+- CORS policy, authentication, HTTPS
+- model/version metadata endpoint, API versioning, deployment revisions, rollback
+- CI/CD, automated Docker builds, benchmark regression tests, model-quality regression tests
+
+### The full progression
+
+```text
+V1
+Single-request inference
+Prefill + Decode + KV Cache + Streaming
+              ↓
+V2
+Queue + Scheduler + Concurrency + Cancellation
+              ↓
+V3
+Dynamic/Continuous Batching
+              ↓
+V4
+Observability + Reliability
+              ↓
+V5
+CPU Performance Engineering
+              ↓
+V6
+Production Platform
+```
+
+This takes the project from "I deployed a fine-tuned model" toward "I built and
+understood an LLM inference serving system."
+
+### Other potential experiments (not part of the V2–V6 line above)
+
 - comparison with specialized inference runtimes;
 - static (rather than dynamic) ONNX quantization, or explicit `Gather`/embedding quantization, to actually shrink the ONNX weight file instead of growing it;
 - a production tokenizer path for the ONNX backend that never touches `transformers` at all;
