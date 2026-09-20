@@ -28,7 +28,11 @@ def get_tokenizer() -> Tokenizer | None:
 
 
 def _resolve_weights_path(url: str | None, filename: str, bundled_path: str) -> str:
-    """Download a model file to /tmp on cold start if a remote URL is set, else use the bundled copy."""
+    """Download a model file to /tmp on cold start if a remote URL is set, else use the bundled copy.
+
+    Uses BLOB_READ_WRITE_TOKEN as a Bearer token when set — required for private Vercel Blob
+    URLs (which carry no expiry, unlike the ~12h signed delegation URLs the dashboard's
+    "copy URL" button generates)."""
     if not url:
         return bundled_path
 
@@ -36,7 +40,12 @@ def _resolve_weights_path(url: str | None, filename: str, bundled_path: str) -> 
     cached_path = os.path.join(settings.MODEL_CACHE_DIR, filename)
     if not os.path.exists(cached_path):
         logger.info("downloading_model_weights file=%s url=%s", filename, url)
-        urllib.request.urlretrieve(url, cached_path)
+        request = urllib.request.Request(url)
+        bearer_token = settings.VERCEL_OIDC_TOKEN or settings.BLOB_READ_WRITE_TOKEN
+        if bearer_token:
+            request.add_header("Authorization", f"Bearer {bearer_token}")
+        with urllib.request.urlopen(request) as response, open(cached_path, "wb") as f:
+            f.write(response.read())
         logger.info("downloaded_model_weights file=%s", filename)
     return cached_path
 
