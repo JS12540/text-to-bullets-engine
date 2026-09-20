@@ -21,6 +21,14 @@ class Settings:
     # Unset locally — falls back to the bundled artifacts/ copy.
     ENCODER_MODEL_URL: str | None = os.environ.get("ENCODER_MODEL_URL")
     DECODER_MODEL_URL: str | None = os.environ.get("DECODER_MODEL_URL")
+    # Required when the URLs above point at a private Blob store: the plain (no query
+    # string) private blob URL needs a Bearer token, since it carries no embedded
+    # expiry — unlike the ~12h signed delegation URL the dashboard's "copy URL" button
+    # generates. VERCEL_OIDC_TOKEN is auto-injected by Vercel at runtime for a
+    # connected store — no dashboard setup needed. BLOB_READ_WRITE_TOKEN (manually set)
+    # is the fallback for local dev / running outside Vercel.
+    VERCEL_OIDC_TOKEN: str | None = os.environ.get("VERCEL_OIDC_TOKEN")
+    BLOB_READ_WRITE_TOKEN: str | None = os.environ.get("BLOB_READ_WRITE_TOKEN")
     MODEL_CACHE_DIR: str = "/tmp/text-to-bullets-model"
     MAX_INPUT_TOKENS: int = 2048
     MAX_NEW_TOKENS: int = 512
